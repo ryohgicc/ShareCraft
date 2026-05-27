@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Node / package managers (none currently used, but in case)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts / packaging
+dist/
+build/
+*.zip
+*.crx
+*.pem
+
+# Logs
+*.log

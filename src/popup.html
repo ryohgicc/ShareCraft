@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>ShareCraft</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <span class="logo">✦</span>
+      <span class="title">ShareCraft</span>
+    </div>
+    <div class="header-actions">
+      <button id="open-history" class="icon-btn" title="历史记录" aria-label="历史记录">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <polyline points="12 7 12 12 15.5 14"></polyline>
+        </svg>
+      </button>
+      <button id="open-options" class="icon-btn" title="设置" aria-label="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <section id="page-info" class="page-info">
+    <div class="page-title" id="page-title">正在读取当前网页…</div>
+    <div class="page-url" id="page-url"></div>
+  </section>
+
+  <section id="active-config" class="active-config" hidden>
+    <span id="active-config-text"></span>
+    <button type="button" id="active-config-edit" class="link-btn">修改</button>
+  </section>
+
+  <section id="style-picker" class="style-picker" hidden>
+    <div class="style-picker-head">
+      <span class="style-picker-title">选择要生成的模板</span>
+      <div class="style-picker-actions">
+        <button type="button" id="picker-all" class="link-btn">全选</button>
+        <button type="button" id="picker-none" class="link-btn">全不选</button>
+      </div>
+    </div>
+    <div id="style-picker-list" class="style-picker-list"></div>
+  </section>
+
+  <section class="controls">
+    <button id="generate-btn" class="primary-btn">
+      <span class="btn-label">生成推荐语</span>
+    </button>
+    <button id="cancel-btn" class="secondary-btn" hidden>终止</button>
+    <button id="regenerate-btn" class="secondary-btn" hidden>重新生成</button>
+    <button id="ack-btn" class="primary-btn" hidden>完成</button>
+  </section>
+
+  <section id="status" class="status" hidden></section>
+
+  <section id="error-detail" class="error-detail" hidden>
+    <div class="error-detail-head">
+      <span>完整错误</span>
+      <button type="button" id="copy-error-btn" class="link-btn">复制</button>
+    </div>
+    <pre id="error-detail-body"></pre>
+  </section>
+
+  <section id="results" class="results" hidden>
+    <!-- Cards are rendered dynamically from task.settingsSnapshot.styles -->
+  </section>
+
+  <section id="empty-config" class="empty-config" hidden>
+    <p>还没有配置 API Key，先去设置一下吧。</p>
+    <button id="goto-options" class="primary-btn">打开设置</button>
+  </section>
+
+  <div id="onboarding" class="onboarding" hidden>
+    <div class="onboarding-card">
+      <div class="onboarding-progress">
+        <span class="dot active"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+      </div>
+
+      <div class="onboarding-step" data-step="0">
+        <div class="onboarding-emoji">✦</div>
+        <h2>欢迎使用 ShareCraft</h2>
+        <p>把当前网页一键变成可直接转发的推荐语。下面快速看一下怎么用。</p>
+      </div>
+
+      <div class="onboarding-step" data-step="1" hidden>
+        <h2>① 配置你自己的 API Key</h2>
+        <p>插件用你自己的 LLM Key 调用，支持 OpenAI 和 Anthropic 协议（含兼容网关）。</p>
+        <p class="onboarding-tip">点右上角 ⚙ 进入设置页，填好 Key 和 Base URL，点「测试连接」。</p>
+      </div>
+
+      <div class="onboarding-step" data-step="2" hidden>
+        <h2>② 选模板，一键生成</h2>
+        <p>勾选你想要的分享模板（朋友安利 / 金句 / 详细，或你自定义的），点「生成推荐语」。</p>
+        <p class="onboarding-tip">每个模板会并发独立请求，更快、互不影响；可以随时点「终止」。</p>
+      </div>
+
+      <div class="onboarding-step" data-step="3" hidden>
+        <h2>③ 复制 → 粘贴到聊天</h2>
+        <p>每条推荐语下方有「复制」按钮，会自动拼接「推荐语 + 网页链接」，直接粘到微信 / 工作群即可。</p>
+        <p class="onboarding-tip">关掉窗口任务也会继续；历史结果可以在 🕓 里翻出来。</p>
+      </div>
+
+      <div class="onboarding-actions">
+        <button type="button" id="onboarding-skip" class="link-btn">跳过</button>
+        <div class="onboarding-actions-right">
+          <button type="button" id="onboarding-prev" class="secondary-btn" hidden>上一步</button>
+          <button type="button" id="onboarding-next" class="primary-btn">下一步</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

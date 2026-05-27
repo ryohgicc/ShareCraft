@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>ShareCraft 历史记录</title>
+  <link rel="stylesheet" href="history.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="page-header">
+      <div class="brand">
+        <span class="logo">✦</span>
+        <h1>ShareCraft 历史记录</h1>
+      </div>
+      <div class="page-header-actions">
+        <input
+          type="search"
+          id="search"
+          class="search"
+          placeholder="按标题、URL、推荐语内容搜索…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button type="button" id="clear-all-btn" class="link-btn danger">清空全部</button>
+      </div>
+    </header>
+
+    <p id="meta" class="meta"></p>
+
+    <section id="empty-state" class="empty-state" hidden>
+      <p>还没有历史记录。</p>
+      <p class="meta">生成任务结束（或终止时保留了至少 1 条结果）后会自动保存到这里。</p>
+    </section>
+
+    <section id="entries" class="entries"></section>
+  </main>
+  <script type="module" src="history.js"></script>
+</body>
+</html>

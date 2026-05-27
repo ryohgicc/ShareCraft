@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>ShareCraft 设置</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="page-header">
+      <div class="brand">
+        <span class="logo">✦</span>
+        <h1>ShareCraft 设置</h1>
+      </div>
+      <p class="subtitle">配置你自己的 LLM API Key，插件会用你的 Key 调用模型生成推荐语。</p>
+    </header>
+
+    <form id="settings-form" class="card">
+      <div class="field">
+        <label for="provider">服务商</label>
+        <select id="provider" name="provider">
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="apiKey">API Key</label>
+        <input
+          id="apiKey"
+          name="apiKey"
+          type="password"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="sk-... 或 anthropic 的 sk-ant-..."
+        />
+        <small class="hint" id="key-hint"></small>
+      </div>
+
+      <div class="field">
+        <label for="baseUrl">Base URL</label>
+        <input
+          id="baseUrl"
+          name="baseUrl"
+          type="url"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="https://api.openai.com/v1"
+        />
+        <small class="hint" id="baseurl-hint"></small>
+      </div>
+
+      <div class="field">
+        <label for="model">模型</label>
+        <input
+          id="model"
+          name="model"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <small class="hint">可改成你账号下任意聊天模型，比如 gpt-4o、claude-sonnet-4-5。</small>
+      </div>
+
+      <div class="field">
+        <label for="language">输出语言</label>
+        <select id="language" name="language">
+          <option value="zh-CN">简体中文</option>
+          <option value="zh-TW">繁體中文</option>
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+        </select>
+        <small class="hint">推荐语会始终使用所选语言。</small>
+      </div>
+
+      <fieldset class="field-group">
+        <legend>分享模板</legend>
+        <p class="hint">
+          每个模板会触发一次独立的并发请求，输出一条对应风格的推荐语。
+          共享规则（语气、禁词、解析约束）和长度规则由插件自动拼上，
+          你的 prompt 里可以用 <code>{MAX}</code> 占位符引用字符上限。
+        </p>
+        <div id="styles-list" class="styles-list"></div>
+        <div class="styles-toolbar">
+          <button type="button" id="add-style-btn" class="secondary-btn">+ 新增模板</button>
+          <button type="button" id="reset-styles-btn" class="link-btn">恢复默认模板</button>
+          <span id="reset-confirm" class="reset-confirm" hidden>
+            <span>这会清掉所有自定义模板，确定？</span>
+            <button type="button" id="reset-confirm-yes" class="link-btn danger">确定恢复</button>
+            <button type="button" id="reset-confirm-no" class="link-btn">取消</button>
+          </span>
+        </div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="primary-btn">保存</button>
+        <button type="button" id="test-btn" class="secondary-btn">测试连接</button>
+        <span id="dirty-badge" class="dirty-badge">未保存修改</span>
+        <span id="save-status" class="save-status" hidden></span>
+      </div>
+
+      <div id="test-detail" class="test-detail" hidden>
+        <div class="test-detail-head">
+          <span id="test-detail-title">测试结果</span>
+          <button type="button" id="copy-error" class="link-btn" hidden>复制错误信息</button>
+        </div>
+        <pre id="test-detail-body"></pre>
+      </div>
+    </form>
+
+    <section class="card help">
+      <h2>说明</h2>
+      <ul>
+        <li>API Key 仅保存在你的浏览器同步存储中，不会上传给第三方服务器。</li>
+        <li>OpenAI 默认接入 <code>https://api.openai.com</code>，Anthropic 接入 <code>https://api.anthropic.com</code>。</li>
+        <li>调用所产生的费用由你自己承担。</li>
+      </ul>
+    </section>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
