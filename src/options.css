@@ -275,6 +275,12 @@ h1 {
   color: var(--text);
 }
 
+/* `[hidden]` defaults to `display: none`, but the rule above sets an explicit
+ * display, which wins. Force it back when hidden. */
+.reset-confirm[hidden] {
+  display: none;
+}
+
 .hint {
   display: block;
   margin-top: 6px;

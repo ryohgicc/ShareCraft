@@ -1,5 +1,6 @@
 import { getSettings } from "./storage.js";
 import { normalizeStyles } from "./prompts.js";
+import { logger } from "./log.js";
 
 const SELECTION_KEY = "sharecraft.styleSelection.v1";
 const ONBOARDING_KEY = "sharecraft.onboardingDismissed.v1";
@@ -27,12 +28,13 @@ const els = {
   pickerList: document.getElementById("style-picker-list"),
   pickerAllBtn: document.getElementById("picker-all"),
   pickerNoneBtn: document.getElementById("picker-none"),
+  styleInputs: document.getElementById("style-inputs"),
 };
 
 let currentPage = null;
 let currentTask = null;
-let availableStyles = []; // user's saved styles from settings
-let selectedStyleIds = new Set(); // ids currently checked in the picker
+let availableStyles = [];
+let selectedStyleIds = new Set();
 let renderedStyles = [];
 
 // ---------- UI helpers ----------
@@ -76,18 +78,15 @@ function setControlsForState(state) {
     case "running":
       els.generateBtn.disabled = true;
       els.generateBtn.querySelector(".btn-label").textContent = "生成中…";
-      els.regenerateBtn.disabled = true;
       els.regenerateBtn.hidden = true;
       els.cancelBtn.hidden = false;
       els.cancelBtn.disabled = false;
-      els.cancelBtn.textContent = "终止";
       els.ackBtn.hidden = true;
       els.picker.hidden = true;
       break;
     case "done":
       els.generateBtn.disabled = true;
       els.generateBtn.querySelector(".btn-label").textContent = "生成推荐语";
-      els.regenerateBtn.disabled = true;
       els.regenerateBtn.hidden = true;
       els.cancelBtn.hidden = true;
       els.ackBtn.hidden = false;
@@ -98,7 +97,6 @@ function setControlsForState(state) {
     case "error":
       els.generateBtn.disabled = true;
       els.generateBtn.querySelector(".btn-label").textContent = "生成推荐语";
-      els.regenerateBtn.disabled = true;
       els.regenerateBtn.hidden = true;
       els.cancelBtn.hidden = true;
       els.ackBtn.hidden = false;
@@ -109,7 +107,6 @@ function setControlsForState(state) {
     case "cancelled":
       els.generateBtn.disabled = true;
       els.generateBtn.querySelector(".btn-label").textContent = "生成推荐语";
-      els.regenerateBtn.disabled = true;
       els.regenerateBtn.hidden = true;
       els.cancelBtn.hidden = true;
       els.ackBtn.hidden = false;
@@ -143,13 +140,12 @@ async function saveSelection() {
   });
 }
 
-// ---------- picker ----------
+// ---------- picker + per-style input areas ----------
 
 function renderPicker() {
   els.pickerList.innerHTML = "";
-  if (availableStyles.length === 0) {
-    return;
-  }
+  if (availableStyles.length === 0) return;
+
   availableStyles.forEach((style) => {
     const id = `pick-${style.id}`;
     const wrap = document.createElement("label");
@@ -166,7 +162,7 @@ function renderPicker() {
       else selectedStyleIds.delete(style.id);
       wrap.classList.toggle("checked", checkbox.checked);
       await saveSelection();
-      // Refresh generate button enabled-state when count changes.
+      renderStyleInputs();
       if (!currentTask) setControlsForState("idle");
     });
 
@@ -176,6 +172,55 @@ function renderPicker() {
 
     wrap.append(checkbox, text);
     els.pickerList.appendChild(wrap);
+  });
+
+  renderStyleInputs();
+}
+
+// 当勾选了 requiresInput 的模板时，在 picker 下方显示对应的输入框。
+function renderStyleInputs() {
+  els.styleInputs.innerHTML = "";
+  const inputStyles = availableStyles.filter(
+    (s) => s.requiresInput && selectedStyleIds.has(s.id)
+  );
+  if (inputStyles.length === 0) return;
+
+  inputStyles.forEach((style) => {
+    const wrap = document.createElement("div");
+    wrap.className = "style-input-wrap";
+
+    const label = document.createElement("label");
+    label.className = "style-input-label";
+    label.textContent = style.label;
+    label.htmlFor = `input-${style.id}`;
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "style-input-textarea";
+    textarea.id = `input-${style.id}`;
+    textarea.rows = 3;
+    textarea.spellcheck = false;
+    textarea.placeholder = "输入你想说的内容，AI 会结合网页帮你润色…";
+    textarea.dataset.styleId = style.id;
+
+    wrap.append(label, textarea);
+    els.styleInputs.appendChild(wrap);
+  });
+}
+
+// 收集所有 requiresInput 模板的用户输入。
+function collectUserInputs() {
+  const inputs = {};
+  els.styleInputs.querySelectorAll("textarea").forEach((ta) => {
+    const id = ta.dataset.styleId;
+    if (id && ta.value.trim()) inputs[id] = ta.value.trim();
+  });
+  return inputs;
+}
+
+// 清空所有输入框（生成后）。
+function clearStyleInputs() {
+  els.styleInputs.querySelectorAll("textarea").forEach((ta) => {
+    ta.value = "";
   });
 }
 
@@ -282,16 +327,24 @@ function renderTask(task) {
     setControlsForState("idle");
     hideStatus();
     clearErrorDetail();
+    // 彻底清空结果区，确保点完成后不残留上一次的卡片。
     els.results.hidden = true;
+    els.results.innerHTML = "";
+    renderedStyles = [];
+    // 恢复显示当前页面的标题和 URL。
+    if (currentPage) {
+      els.pageTitle.textContent = currentPage.title || "(无标题)";
+      els.pageUrl.textContent = currentPage.url || "";
+    }
     return;
   }
 
   const taskUrl = task.page?.url || "";
   if (currentPage && taskUrl && taskUrl !== currentPage.url) {
-    showStatus(
-      `当前任务对应的是「${task.page.title || taskUrl}」，与当前网页不同。`,
-      "info"
-    );
+    // 任务对应的页面和当前标签页不同时，把顶部页面信息区切换成任务页面的
+    // 标题+链接（和图 2 一样的紧凑格式），不再用长文字 status 条。
+    els.pageTitle.textContent = task.page?.title || "(无标题)";
+    els.pageUrl.textContent = taskUrl;
   } else {
     hideStatus();
   }
@@ -300,8 +353,7 @@ function renderTask(task) {
     const styles = task.settingsSnapshot?.styles || [];
     const total = styles.length;
     const done = styles.filter((s) => task.progress?.[s.id] === "done").length;
-    const failed = styles.filter((s) => task.progress?.[s.id] === "error")
-      .length;
+    const failed = styles.filter((s) => task.progress?.[s.id] === "error").length;
     showStatus(
       `生成中… ${done}/${total} 已完成${failed ? `，${failed} 条失败` : ""}（关掉窗口也会继续）`,
       "info"
@@ -319,10 +371,7 @@ function renderTask(task) {
     const styles = task.settingsSnapshot?.styles || [];
     const done = styles.filter((s) => task.progress?.[s.id] === "done").length;
     if (done > 0) {
-      showStatus(
-        `已终止生成（保留了 ${done} 条已完成的结果）`,
-        "info"
-      );
+      showStatus(`已终止生成（保留了 ${done} 条已完成的结果）`, "info");
     } else {
       showStatus("已终止生成", "info");
     }
@@ -366,6 +415,19 @@ async function startTask({ force = false } = {}) {
     showStatus("请先勾选要生成的模板。", "error");
     return;
   }
+
+  // 校验 requiresInput 模板是否有输入
+  const inputStyles = availableStyles.filter(
+    (s) => s.requiresInput && selectedStyleIds.has(s.id)
+  );
+  const userInputs = collectUserInputs();
+  for (const s of inputStyles) {
+    if (!userInputs[s.id]) {
+      showStatus(`请先为「${s.label}」输入内容。`, "error");
+      return;
+    }
+  }
+
   if (!currentPage) {
     try {
       currentPage = await readActiveTabContent();
@@ -387,6 +449,7 @@ async function startTask({ force = false } = {}) {
       page: currentPage,
       force,
       selectedStyleIds: Array.from(selectedStyleIds),
+      userInputs,
     });
   } catch (err) {
     showStatus(`派发失败：${err.message || err}`, "error");
@@ -406,15 +469,13 @@ async function startTask({ force = false } = {}) {
     return;
   }
 
+  // 生成开始后清空输入框（每次独立）
+  clearStyleInputs();
   renderTask(res.task);
 }
 
 async function cancelCurrentTask() {
   if (!currentTask || currentTask.status !== "running") return;
-
-  // Optimistically render the cancelled state right now so the click feels
-  // instant. The SW will mirror this to storage; storage onChanged will then
-  // confirm. If the SW round-trip fails we'll surface that as an error.
   const optimistic = {
     ...currentTask,
     status: "cancelled",
@@ -428,7 +489,6 @@ async function cancelCurrentTask() {
     ),
   };
   renderTask(optimistic);
-
   try {
     const res = await chrome.runtime.sendMessage({
       type: "cancelTask",
@@ -529,8 +589,15 @@ function subscribeToTaskChanges() {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
     const change = changes["sharecraft.task.v1"];
-    if (!change) return;
-    renderTask(change.newValue || null);
+    if (change) {
+      const t = change.newValue || null;
+      logger.debug("popup.onChanged", "task updated", {
+        status: t?.status ?? null,
+        cancelled: t?.cancelled ?? null,
+        progress: t?.progress ?? null,
+      });
+      renderTask(t);
+    }
   });
 }
 
@@ -655,7 +722,7 @@ async function init() {
     return;
   }
 
-  // Show which endpoint is in use.
+  // 显示当前使用的接口信息
   try {
     const { DEFAULT_BASE_URLS } = await import("./llm.js");
     const base =
@@ -670,13 +737,10 @@ async function init() {
     els.activeConfigText.textContent = `${settings.provider} · ${host} · ${settings.model || "(default)"}`;
   } catch (_) {}
 
-  // Available styles + restore previous selection (default = all).
+  // 加载模板列表 + 恢复上次的勾选
   availableStyles = normalizeStyles(settings.styles);
   if (availableStyles.length === 0) {
-    showStatus(
-      "还没有任何分享模板。请到设置页新增或恢复默认模板。",
-      "error"
-    );
+    showStatus("还没有任何分享模板。请到设置页新增或恢复默认模板。", "error");
     els.generateBtn.disabled = true;
     els.picker.hidden = true;
     return;
@@ -685,15 +749,21 @@ async function init() {
   const saved = await loadSelection();
   const allIds = new Set(availableStyles.map((s) => s.id));
   if (saved) {
-    // Drop ids that no longer exist in settings.
     selectedStyleIds = new Set(saved.filter((id) => allIds.has(id)));
+    // 如果有新增的内置模板不在旧 selection 里，自动加进去（避免升级后
+    // 新模板默认不选中，用户以为勾了但其实没有）。
+    const savedSet = new Set(saved);
+    for (const id of allIds) {
+      if (!savedSet.has(id)) selectedStyleIds.add(id);
+    }
     if (selectedStyleIds.size === 0) selectedStyleIds = new Set(allIds);
   } else {
     selectedStyleIds = new Set(allIds);
   }
+  await saveSelection(); // 把补全后的 selection 写回，下次不再重复补
   renderPicker();
 
-  // Read current page info.
+  // 读取当前页面
   try {
     currentPage = await readActiveTabContent();
     els.pageTitle.textContent = currentPage.title || "(无标题)";
@@ -705,7 +775,7 @@ async function init() {
     els.generateBtn.disabled = true;
   }
 
-  // Hydrate from persisted task state.
+  // 恢复上次的任务状态
   const task = await fetchTask();
   if (task) {
     renderTask(task);

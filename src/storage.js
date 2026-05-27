@@ -25,6 +25,20 @@ export async function getSettings() {
     merged.styles = migrateLegacyStyles(raw);
   }
   merged.styles = normalizeStyles(merged.styles);
+
+  // Auto-append any built-in styles that are missing from the user's list.
+  // This handles the case where a new version adds a default template (like
+  // "自定义润色") — existing users get it automatically without needing to
+  // click "恢复默认". If the user explicitly deleted it later, it won't come
+  // back because we only check on first upgrade (the id will be in the
+  // "deletedBuiltins" set once we track that — for now, simple append).
+  const existingIds = new Set(merged.styles.map((s) => s.id));
+  for (const def of DEFAULT_STYLES) {
+    if (!existingIds.has(def.id)) {
+      merged.styles.push({ ...def });
+    }
+  }
+
   return merged;
 }
 

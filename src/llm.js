@@ -61,6 +61,20 @@ async function fetchOrThrow(
 ) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  // Service workers in MV3 get suspended after ~30s of idle. setTimeout
+  // does NOT keep the SW alive on its own, so a long-running fetch can
+  // sit waiting forever for a slow gateway that never responds — the
+  // timeout itself never fires because the SW is asleep.
+  // We poke chrome.storage every 20s; storage access counts as activity
+  // and keeps the SW alive while a fetch is in flight.
+  const keepAlive = setInterval(() => {
+    try {
+      // Throwaway read; result is ignored.
+      chrome.storage.local.get("__keepalive__").catch(() => {});
+    } catch (_) {}
+  }, 20000);
+
   // Wire an external signal (e.g. user-clicked "终止") so we can cancel
   // mid-flight without waiting for the timeout.
   let externalAborted = false;
@@ -94,6 +108,7 @@ async function fetchOrThrow(
     );
   } finally {
     clearTimeout(timer);
+    clearInterval(keepAlive);
     if (externalSignal) {
       externalSignal.removeEventListener("abort", onExternalAbort);
     }

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>ShareCraft 日志</title>
+  <link rel="stylesheet" href="logs.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="page-header">
+      <div class="brand">
+        <span class="logo">✦</span>
+        <h1>ShareCraft 诊断日志</h1>
+      </div>
+      <p class="subtitle">用于排查"卡在生成中""结果丢失"等问题。日志保存在本地，最多 600 条。</p>
+      <div class="toolbar">
+        <label class="toolbar-item">
+          级别
+          <select id="level">
+            <option value="">全部</option>
+            <option value="debug">debug 及以上</option>
+            <option value="info" selected>info 及以上</option>
+            <option value="warn">warn / error</option>
+            <option value="error">仅 error</option>
+          </select>
+        </label>
+        <label class="toolbar-item">
+          作用域
+          <select id="scope">
+            <option value="">全部</option>
+          </select>
+        </label>
+        <input
+          type="search"
+          id="search"
+          class="search"
+          placeholder="按文本搜索…"
+          autocomplete="off"
+        />
+        <button type="button" id="refresh-btn" class="secondary-btn">刷新</button>
+        <button type="button" id="copy-btn" class="secondary-btn">复制 JSON</button>
+        <button type="button" id="clear-btn" class="link-btn danger">清空日志</button>
+      </div>
+      <p id="meta" class="meta"></p>
+    </header>
+
+    <section id="empty" class="empty" hidden>
+      <p>暂无日志。</p>
+      <p class="meta">关闭这个页面，去用 popup 触发一次生成，然后回来刷新即可看到。</p>
+    </section>
+
+    <table class="log-table" id="table">
+      <thead>
+        <tr>
+          <th>时间</th>
+          <th>级别</th>
+          <th>作用域</th>
+          <th>消息</th>
+          <th>data</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </main>
+  <script type="module" src="logs.js"></script>
+</body>
+</html>

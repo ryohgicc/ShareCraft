@@ -438,4 +438,8 @@ copyErrorBtn.addEventListener("click", async () => {
   }
 });
 
+document.getElementById("open-logs-btn").addEventListener("click", () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL("src/logs.html") });
+});
+
 load();

@@ -18,10 +18,8 @@ import {
 import { getSettings } from "./storage.js";
 import { getTask, setTask, patchTask } from "./task.js";
 import { addToHistory, snapshotTaskForHistory } from "./historyStore.js";
+import { logger } from "./log.js";
 
-// Map<taskId, AbortController> for the currently running task. Lives only in
-// the SW's memory — if the SW is suspended/restarted the controller is gone,
-// but storage's `cancelled` flag is the durable source of truth.
 const taskControllers = new Map();
 
 function serializeError(err) {
@@ -41,7 +39,7 @@ function serializeError(err) {
   };
 }
 
-async function startTask({ page, force = false, selectedStyleIds = null }) {
+async function startTask({ page, force = false, selectedStyleIds = null, userInputs = {} }) {
   const existing = await getTask();
   if (
     !force &&
@@ -64,9 +62,6 @@ async function startTask({ page, force = false, selectedStyleIds = null }) {
     throw new LlmError("没有可用的分享模板，请到设置页新增或恢复默认模板。");
   }
 
-  // Filter by user selection. If selectedStyleIds is null/undefined we run
-  // all styles (backwards-compatible). Empty array means "user deselected
-  // everything" — reject early so they don't get a confused empty task.
   let styles = allStyles;
   if (Array.isArray(selectedStyleIds)) {
     if (selectedStyleIds.length === 0) {
@@ -102,6 +97,7 @@ async function startTask({ page, force = false, selectedStyleIds = null }) {
         id: s.id,
         label: s.label,
         maxChars: s.maxChars,
+        requiresInput: !!s.requiresInput,
       })),
     },
     results: Object.fromEntries(styleIds.map((k) => [k, null])),
@@ -113,20 +109,36 @@ async function startTask({ page, force = false, selectedStyleIds = null }) {
   const controller = new AbortController();
   taskControllers.set(taskId, controller);
 
-  // Fire all style calls in parallel. Each one updates storage independently.
+  logger.info("startTask", "dispatching styles", {
+    taskId,
+    styleIds,
+    selectedStyleIds,
+    allStyleIds: allStyles.map((s) => s.id),
+    page: { title: page?.title, url: page?.url },
+    provider: settings.provider,
+    model: settings.model,
+    baseUrl: resolvedBase,
+  });
+
   const promises = styles.map(async (style) => {
+    const startedAt = Date.now();
+    logger.debug("style.fetch", `start ${style.id}`, { taskId });
     try {
       const text = await callOne({
         apiKey: settings.apiKey,
         model: settings.model,
         baseUrl: resolvedBase,
         systemPrompt: buildSystemPromptForStyle(lang, style),
-        userPrompt: buildUserPromptForStyle(page, style),
+        userPrompt: buildUserPromptForStyle(page, style, userInputs[style.id]),
         signal: controller.signal,
+      });
+      logger.info("style.fetch", `success ${style.id}`, {
+        taskId,
+        durMs: Date.now() - startedAt,
+        chars: text?.length ?? 0,
       });
       await patchTask((cur) => {
         if (!cur || cur.id !== taskId) return cur;
-        // If the task was cancelled, drop results that came back after.
         if (cur.cancelled) {
           return {
             ...cur,
@@ -143,11 +155,15 @@ async function startTask({ page, force = false, selectedStyleIds = null }) {
       const isAbort =
         err?.name === "AbortedByUser" || err?.cause?.name === "AbortError";
       const serialized = serializeError(err);
+      logger.warn("style.fetch", `failed ${style.id}`, {
+        taskId,
+        durMs: Date.now() - startedAt,
+        isAbort,
+        error: serialized,
+      });
       await patchTask((cur) => {
         if (!cur || cur.id !== taskId) return cur;
         if (isAbort) {
-          // Don't add abort errors to the visible errors list — they were
-          // requested by the user. Just mark this style cancelled.
           return {
             ...cur,
             progress: { ...cur.progress, [style.id]: "cancelled" },
@@ -165,9 +181,6 @@ async function startTask({ page, force = false, selectedStyleIds = null }) {
     }
   });
 
-  // When all settle, mark the task done/error. (For cancelled tasks the
-  // status is set eagerly in cancelTask(); here we only finalize natural
-  // completion, never overwrite a cancelled task.)
   Promise.allSettled(promises).then(async () => {
     taskControllers.delete(taskId);
     const finalized = await patchTask((cur) => {
@@ -180,7 +193,11 @@ async function startTask({ page, force = false, selectedStyleIds = null }) {
         finishedAt: Date.now(),
       };
     });
-    // Save to history if we got at least one usable result.
+    logger.info("startTask", "all styles settled", {
+      taskId,
+      status: finalized?.status,
+      progress: finalized?.progress,
+    });
     const snapshot = snapshotTaskForHistory(finalized);
     if (snapshot) await addToHistory(snapshot);
   });
@@ -192,17 +209,18 @@ async function cancelTask(taskId) {
   const cur = await getTask();
   if (!cur) return { ok: true };
   if (taskId && cur.id !== taskId) {
+    logger.warn("cancelTask", "stale taskId", { reqId: taskId, curId: cur.id });
     return { ok: false, reason: "stale", task: cur };
   }
   if (cur.status !== "running") {
     return { ok: false, reason: "not-running", task: cur };
   }
 
-  // Eagerly finalize the task to "cancelled" right now. Don't wait for the
-  // in-flight fetches to actually unwind — that can take a moment, and the
-  // user expects clicking "终止" to feel instant. Any results that arrive
-  // late will be discarded by the per-style handler (which checks
-  // cur.cancelled before writing results).
+  logger.info("cancelTask", "user cancel", {
+    taskId: cur.id,
+    progress: cur.progress,
+  });
+
   const next = await patchTask((c) => {
     if (!c) return c;
     const styles = c.settingsSnapshot?.styles || [];
@@ -221,14 +239,9 @@ async function cancelTask(taskId) {
     };
   });
 
-  // Abort any in-flight fetches owned by this SW instance. The fetches will
-  // throw AbortedByUser, which the per-style handler ignores because the
-  // task is already finalized as cancelled.
   const controller = taskControllers.get(cur.id);
   if (controller) controller.abort();
 
-  // If we kept any partial results, persist them to history so the user can
-  // come back to them later.
   const snapshot = snapshotTaskForHistory(next);
   if (snapshot) await addToHistory(snapshot);
 
@@ -245,7 +258,8 @@ async function acknowledgeTask(taskId) {
     return { ok: false, reason: "still-running", task: cur };
   }
   await setTask(null);
-  return { ok: true };
+  logger.info("acknowledgeTask", "task cleared", { taskId: cur.id });
+  return { ok: true, task: null };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -256,6 +270,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           page: message.page,
           force: !!message.force,
           selectedStyleIds: message.selectedStyleIds ?? null,
+          userInputs: message.userInputs || {},
         });
         sendResponse(out);
       } catch (err) {
