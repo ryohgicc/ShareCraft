@@ -30,7 +30,7 @@ body {
 
 body {
   width: 380px;
-  min-height: 560px;
+  min-height: 200px;
   padding: 12px 14px 16px;
 }
 
@@ -527,14 +527,12 @@ body {
 /* ---------- Onboarding overlay ---------- */
 
 .onboarding {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: var(--bg);
+  width: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   padding: 16px;
-  overflow-y: auto;
+  background: var(--bg);
 }
 
 .onboarding[hidden] {

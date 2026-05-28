@@ -643,6 +643,7 @@ function showOnboardingStep(idx) {
 
 async function dismissOnboarding() {
   onboardingEls.root.hidden = true;
+  document.getElementById("main-content").hidden = false;
   await chrome.storage.local.set({ [ONBOARDING_KEY]: true });
 }
 
@@ -662,6 +663,7 @@ function bindOnboardingEvents() {
 
 function showOnboarding() {
   onboardingEls.root.hidden = false;
+  document.getElementById("main-content").hidden = true;
   showOnboardingStep(0);
 }
 
