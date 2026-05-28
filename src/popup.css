@@ -613,6 +613,16 @@ body {
   margin-top: 8px;
 }
 
+.onboarding-img {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin: 10px auto;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
 .onboarding-actions {
   display: flex;
   align-items: center;
