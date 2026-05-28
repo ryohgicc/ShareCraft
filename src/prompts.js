@@ -80,11 +80,59 @@ export const DEFAULT_STYLES = [
     id: "friend",
     label: "朋友安利",
     maxChars: 100,
-    prompt: `Write the recommendation in style "friend":
-Casually recommend it to a close friend in IM chat.
-Feel personal and warm, like a real friend saying "you'll like this".
-Example tone: "看到一篇讲 X 的，挺有意思，你应该会感兴趣" or "Found this take on Y, pretty thought-provoking".
-EXAMPLE OUTPUT (≈90 chars): 这篇写得真实，讲了职场人的真实困境，还有几条挺实用的建议，不是那种鸡汤说教，你看了肯定有共鸣`,
+    prompt: `Write the recommendation in the "close friend" style:
+
+VOICE & TONE
+- Casual IM chat between close friends — warm, personal, low-pressure.
+- Sound like you actually read it and genuinely want to share, not selling it.
+- Avoid marketing language: no "必看", "震撼", "强烈推荐", "amazing", "must-read".
+- Avoid clichés and 鸡汤/self-help phrasing.
+
+CONTENT STRUCTURE (~80–100 chars, ONE short message)
+1. A light hook — what it's about, or why it caught your eye.
+2. One concrete reason it's worth their time (fresh angle / real cases / counter-intuitive insight / solid approach).
+3. A natural ending (see ENDING RULE below).
+
+ENDING RULE (mandatory — never end on a feature description)
+The last clause MUST be ONE of these four types:
+(a) LIGHT JUDGMENT — a brief personal take, not a verdict
+    e.g. "思路是对的" / "算是把这事往前推了一步" / "挺扎实的"
+(b) OPEN HOOK — tease without spelling it out, leave room for curiosity
+    e.g. "具体怎么样你自己看" / "细节比我说的有意思" / "看完可能会改变点想法"
+(c) SCENARIO SUGGESTION — when/how it'd be useful
+    e.g. "下次做原型可以拿来玩玩" / "通勤路上翻翻刚好"
+(d) FIT SIGNAL — who/what mindset it suits
+    e.g. "适合最近在纠结 X 的人看" / "如果你也在想这事,挺对味的"
+
+❌ Bad ending:   "...还能生成对比报告。"           (stops at a feature)
+❌ Bad ending:   "...你一定要看!"                  (pushy, marketing tone)
+✅ Good ending:  "...思路是对的,值得翻翻。"        (light judgment)
+✅ Good ending:  "...具体效果你自己试,我觉得方向有意思。" (open hook + judgment)
+
+STYLE RULES
+- First-person, conversational; casual particles welcome (挺/还/嘛/吧/算是 in Chinese; "kinda", "pretty", "tbh" in English).
+- ONE short message — no bullet points, no headings, no emoji spam.
+- No spoilers of the main argument; tease, don't summarize.
+- Match the language of the article (Chinese article → Chinese rec).
+- Keep the ending SHORT — a clause, not another sentence pile-up.
+
+TONE REFERENCES
+- "看到一篇讲 X 的,挺有意思,你应该会感兴趣"
+- "Found this take on Y, pretty thought-provoking"
+
+EXAMPLE OUTPUTS (~90 chars):
+
+[judgment ending]
+这篇写得挺真实,讲职场人那种说不清的困境,还给了几条挺落地的建议,不鸡汤也不说教,算是难得讲明白了的一篇。
+
+[open hook ending]
+看到一个给 AI 设计代理用的 Lazyweb,不靠模型凭感觉画界面,而是拉了二十多万真实应用截图做参考,具体效果你自己试,思路挺有意思。
+
+[scenario ending]
+发现一个挺有意思的工具,把 Mobbin、Dribbble 这些库都接进来生成对比报告,下次做 side project 的原型可以拿来玩玩。
+
+[fit ending]
+一篇讲 AI 设计工程化的,不是空谈方法论,有真实数据和流程,如果你最近也在折腾这块,挺对味的。`,
   },
   {
     id: "quote",
