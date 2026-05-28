@@ -23,7 +23,6 @@ const els = {
   copyErrorBtn: document.getElementById("copy-error-btn"),
   activeConfig: document.getElementById("active-config"),
   activeConfigText: document.getElementById("active-config-text"),
-  activeConfigEdit: document.getElementById("active-config-edit"),
   picker: document.getElementById("style-picker"),
   pickerList: document.getElementById("style-picker-list"),
   pickerAllBtn: document.getElementById("picker-all"),
@@ -701,10 +700,6 @@ function bindEvents() {
       }, 1200);
     } catch (_) {}
   });
-
-  els.activeConfigEdit.addEventListener("click", () =>
-    chrome.runtime.openOptionsPage()
-  );
 }
 
 async function init() {
