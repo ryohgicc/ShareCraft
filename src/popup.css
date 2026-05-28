@@ -532,9 +532,9 @@ body {
   z-index: 9999;
   background: var(--bg);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px 16px;
+  flex-direction: column;
+  padding: 16px;
+  overflow-y: auto;
 }
 
 .onboarding[hidden] {
@@ -544,9 +544,10 @@ body {
 .onboarding-card {
   width: 100%;
   max-width: 340px;
+  margin: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .onboarding-progress {
@@ -616,8 +617,9 @@ body {
 .onboarding-img {
   display: block;
   width: 100%;
-  max-width: 300px;
-  margin: 10px auto;
+  max-height: 180px;
+  object-fit: contain;
+  margin: 8px auto;
   border-radius: 10px;
   border: 1px solid var(--border);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
