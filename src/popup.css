@@ -626,6 +626,7 @@ body {
   padding: 6px 12px;
   border-radius: 8px;
   transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
 }
 
 .onboarding-actions .link-btn:hover {
@@ -644,6 +645,7 @@ body {
   padding: 9px 20px;
   font-size: 14px;
   border-radius: 10px;
+  white-space: nowrap;
 }
 
 .onboarding-actions-right .secondary-btn {
@@ -653,6 +655,7 @@ body {
   background: var(--secondary);
   border: none;
   color: var(--text);
+  white-space: nowrap;
 }
 
 .onboarding-actions-right .secondary-btn:hover {
