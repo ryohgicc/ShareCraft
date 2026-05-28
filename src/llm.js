@@ -363,7 +363,6 @@ export async function testConnection({ provider, apiKey, model, baseUrl }) {
     },
     body: JSON.stringify({
       model: resolvedModel,
-      max_tokens: 1,
       messages: [{ role: "user", content: "ping" }],
     }),
   });
