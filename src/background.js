@@ -13,6 +13,7 @@ import {
   testConnection,
   callOpenAIStyle,
   callAnthropicStyle,
+  callCustomStyle,
   normalizeBaseUrl,
 } from "./llm.js";
 import { getSettings } from "./storage.js";
@@ -76,7 +77,11 @@ async function startTask({ page, force = false, selectedStyleIds = null, userInp
 
   const resolvedBase = normalizeBaseUrl(settings.baseUrl, settings.provider);
   const callOne =
-    settings.provider === "anthropic" ? callAnthropicStyle : callOpenAIStyle;
+    settings.provider === "anthropic"
+      ? callAnthropicStyle
+      : settings.provider === "custom"
+      ? callCustomStyle
+      : callOpenAIStyle;
   const lang = settings.language || "zh-CN";
   const styleIds = styles.map((s) => s.id);
   const taskId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

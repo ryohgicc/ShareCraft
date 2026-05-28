@@ -117,6 +117,13 @@ MIT
 
 ## 更新日志
 
+### v2.1.0
+
+- 新增「自定义（直接请求）」服务商选项：直接 POST 到用户填的完整 URL，不追加任何路径。适合 URL 本身就是完整端点的网关（如 PackyAPI）。
+- OpenAI 选项现在明确标注为"OpenAI（兼容协议）"，会自动拼接 `/chat/completions`。
+- 设置页 Base URL 提示文案更新，明确说明每种模式的 URL 填法。
+- 修复 v2.0.2 中第三方网关 URL 处理逻辑不稳定的问题。
+
 ### v2.0.2
 
 - 修复第三方网关 URL 被强制追加 `/chat/completions` 的问题。现在只有官方域名（`api.openai.com` / `api.anthropic.com`）会自动拼接路径，其他网关直接使用用户填写的完整 URL。

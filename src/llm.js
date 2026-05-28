@@ -25,6 +25,7 @@ export const DEFAULT_MODELS = {
 export const DEFAULT_BASE_URLS = {
   openai: "https://api.openai.com/v1",
   anthropic: "https://api.anthropic.com/v1",
+  custom: "",
 };
 
 // Custom error type that preserves full error info for the UI to display.
@@ -47,31 +48,10 @@ function normalizeBaseUrl(url, provider) {
 
 export { normalizeBaseUrl };
 
-// 官方 API 的域名列表——这些需要拼接路径（如 /chat/completions）。
-// 非官方的（第三方网关）直接用用户填的 URL，不追加任何路径。
-const OFFICIAL_API_HOSTS = [
-  "api.openai.com",
-  "api.anthropic.com",
-];
-
-function isOfficialUrl(url) {
-  try {
-    const host = new URL(url).hostname;
-    return OFFICIAL_API_HOSTS.includes(host);
-  } catch (_) {
-    return false;
-  }
-}
-
 function buildUrl(baseUrl, path) {
   const base = baseUrl.replace(/\/+$/, "");
-  if (isOfficialUrl(base)) {
-    // 官方 URL：拼接标准路径（如 /v1 + /chat/completions）
-    if (base.endsWith(path)) return base;
-    return base + path;
-  }
-  // 第三方网关：直接用用户填的 URL，不追加
-  return base;
+  if (base.endsWith(path)) return base;
+  return base + path;
 }
 
 async function fetchOrThrow(
@@ -286,6 +266,66 @@ export async function callAnthropicStyle({
   return cleanText(content);
 }
 
+// "自定义（直接请求）"模式：不拼路径，直接 POST 到用户填的 URL。
+// 请求格式仍然用 OpenAI 的 body 结构（messages 数组），因为这是最通用的。
+export async function callCustomStyle({
+  apiKey,
+  model,
+  baseUrl,
+  systemPrompt,
+  userPrompt,
+  signal,
+}) {
+  // 直接用 baseUrl，不追加任何路径。
+  const url = baseUrl.replace(/\/+$/, "");
+  const res = await fetchOrThrow(
+    "Custom",
+    url,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model || "gpt-4o-mini",
+        temperature: 0.9,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    },
+    { externalSignal: signal }
+  );
+
+  const rawText = await res.text();
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch (err) {
+    throw new LlmError(`返回的不是合法 JSON：${err?.message || err}`, {
+      url,
+      body: rawText,
+    });
+  }
+  if (data?.error) {
+    const msg =
+      typeof data.error === "string"
+        ? data.error
+        : data.error?.message || JSON.stringify(data.error);
+    throw new LlmError(`接口返回错误：${msg}`, { url, body: rawText });
+  }
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content !== "string" || !content.trim()) {
+    throw new LlmError(
+      "返回结构异常：找不到 choices[0].message.content",
+      { url, body: rawText }
+    );
+  }
+  return cleanText(content);
+}
+
 export async function generateRecommendations({ settings, page }) {
   // Legacy orchestrator. The service worker now drives generation directly
   // (see background.js). Kept here only for any external callers; it operates
@@ -375,6 +415,24 @@ export async function testConnection({ provider, apiKey, model, baseUrl }) {
     return { provider, model: resolvedModel, baseUrl: resolvedBase, url };
   }
 
+  if (provider === "custom") {
+    // 自定义模式：直接用用户填的 URL，不拼路径
+    const url = resolvedBase.replace(/\/+$/, "");
+    await fetchOrThrow("Custom", url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: resolvedModel,
+        messages: [{ role: "user", content: "ping" }],
+      }),
+    });
+    return { provider, model: resolvedModel, baseUrl: resolvedBase, url };
+  }
+
+  // OpenAI（默认）
   const url = buildUrl(resolvedBase, "/chat/completions");
   await fetchOrThrow("OpenAI", url, {
     method: "POST",

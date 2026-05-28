@@ -33,16 +33,20 @@ const resetConfirmNoBtn = document.getElementById("reset-confirm-no");
 
 const PROVIDER_HINTS = {
   openai:
-    'OpenAI Key 通常以 "sk-" 开头，在 platform.openai.com → API keys 创建。',
+    'OpenAI Key 通常以 "sk-" 开头，在 platform.openai.com → API keys 创建。兼容 OpenAI 协议的网关（DeepSeek / Moonshot / OpenRouter / aihubmix 等）也选这个。',
   anthropic:
     'Anthropic Key 通常以 "sk-ant-" 开头，在 console.anthropic.com → API Keys 创建。',
+  custom:
+    "自定义模式：直接 POST 到你填的 Base URL，不追加任何路径。请求格式仍用 OpenAI 的 messages 结构。适合 URL 本身就是完整端点的网关。",
 };
 
 const BASEURL_HINTS = {
   openai:
-    "默认 https://api.openai.com/v1。也可以填入兼容 OpenAI 接口的网关，比如 OpenRouter / DeepSeek / Moonshot / Azure 反代。",
+    "填到 /v1 即可，插件会自动拼接 /chat/completions。例如：https://api.openai.com/v1 或 https://aihubmix.com/v1",
   anthropic:
-    "默认 https://api.anthropic.com/v1。如果走自建反代，填到 /v1 即可。",
+    "填到 /v1 即可，插件会自动拼接 /messages。例如：https://api.anthropic.com/v1",
+  custom:
+    "填完整的 API 端点 URL，插件不会追加任何路径。例如：https://www.packyapi.com/chat/completions",
 };
 
 // --- Working copy of styles ---
