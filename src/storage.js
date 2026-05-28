@@ -11,6 +11,10 @@ export const DEFAULT_SETTINGS = {
   baseUrl: DEFAULT_BASE_URLS.openai,
   language: "zh-CN",
   styles: DEFAULT_STYLES.map((s) => ({ ...s })),
+  // 用户主动删除过的内置模板 id 列表。自动补全逻辑会跳过这些 id，
+  // 避免用户删了之后每次保存又被自动加回来。
+  // 「恢复默认模板」按钮会清空这个列表。
+  deletedBuiltins: [],
 };
 
 export async function getSettings() {
@@ -18,23 +22,23 @@ export async function getSettings() {
   const raw = data[KEY] || {};
   const merged = { ...DEFAULT_SETTINGS, ...raw };
 
-  // Migration from older shapes that used styleLimits / stylePrompts maps
-  // keyed by style id. If a user upgraded mid-customization, we want to
-  // preserve their tweaks.
+  // 老版本数据迁移：styleLimits / stylePrompts → styles 数组。
   if (!Array.isArray(merged.styles)) {
     merged.styles = migrateLegacyStyles(raw);
   }
   merged.styles = normalizeStyles(merged.styles);
 
-  // Auto-append any built-in styles that are missing from the user's list.
-  // This handles the case where a new version adds a default template (like
-  // "自定义润色") — existing users get it automatically without needing to
-  // click "恢复默认". If the user explicitly deleted it later, it won't come
-  // back because we only check on first upgrade (the id will be in the
-  // "deletedBuiltins" set once we track that — for now, simple append).
+  if (!Array.isArray(merged.deletedBuiltins)) {
+    merged.deletedBuiltins = [];
+  }
+
+  // 自动补全缺失的内置模板，但**跳过用户主动删除过的**。
+  // 这样老用户升级后能自动看到新增的内置模板（如自定义润色），
+  // 但删除过的不会被强制找回。
   const existingIds = new Set(merged.styles.map((s) => s.id));
+  const deletedSet = new Set(merged.deletedBuiltins);
   for (const def of DEFAULT_STYLES) {
-    if (!existingIds.has(def.id)) {
+    if (!existingIds.has(def.id) && !deletedSet.has(def.id)) {
       merged.styles.push({ ...def });
     }
   }
@@ -47,17 +51,32 @@ export async function saveSettings(partial) {
   const next = { ...current, ...partial };
   if (partial.styles) {
     next.styles = normalizeStyles(partial.styles);
+
+    // 检测用户是否删除了内置模板，写入 deletedBuiltins。
+    const newIds = new Set(next.styles.map((s) => s.id));
+    const newlyDeleted = DEFAULT_STYLES
+      .map((d) => d.id)
+      .filter((id) => !newIds.has(id));
+    next.deletedBuiltins = Array.from(
+      new Set([...(current.deletedBuiltins || []), ...newlyDeleted])
+    );
+    // 同时：用户重新加回某个内置模板时，从 deletedBuiltins 里移除。
+    next.deletedBuiltins = next.deletedBuiltins.filter(
+      (id) => !newIds.has(id)
+    );
   }
-  // Drop legacy fields so we don't keep migrating them every save.
+  if (Array.isArray(partial.deletedBuiltins)) {
+    next.deletedBuiltins = partial.deletedBuiltins;
+  }
+  // 删掉老版本字段，避免每次保存都重复迁移。
   delete next.styleLimits;
   delete next.stylePrompts;
   await chrome.storage.sync.set({ [KEY]: next });
   return next;
 }
 
-// One-time migration: take the old { styleLimits: {key: number},
-// stylePrompts: {key: string} } and rebuild a styles array on top of
-// DEFAULT_STYLES order/labels.
+// 老版本迁移：把 { styleLimits: {key: number}, stylePrompts: {key: string} }
+// 重建成 styles 数组（基于 DEFAULT_STYLES 的顺序和标签）。
 function migrateLegacyStyles(raw) {
   const oldLimits = raw?.styleLimits || {};
   const oldPrompts = raw?.stylePrompts || {};
