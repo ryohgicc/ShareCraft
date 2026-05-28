@@ -49,7 +49,14 @@ export { normalizeBaseUrl };
 
 function buildUrl(baseUrl, path) {
   const base = baseUrl.replace(/\/+$/, "");
+  // 如果用户填的 URL 已经包含了完整的 API 路径，直接用，不追加。
+  // 这样兼容两种填法：
+  //   1. https://api.openai.com/v1          → 拼成 .../v1/chat/completions
+  //   2. https://www.packyapi.com/chat/completions → 直接用
   if (base.endsWith(path)) return base;
+  if (base.includes("/chat/completions") || base.includes("/messages")) {
+    return base;
+  }
   return base + path;
 }
 
