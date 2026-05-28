@@ -523,3 +523,138 @@ body {
     background-position: -200% 0;
   }
 }
+
+/* ---------- Onboarding overlay ---------- */
+
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+}
+
+.onboarding[hidden] {
+  display: none;
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.onboarding-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.onboarding-progress .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s ease;
+}
+
+.onboarding-progress .dot.active {
+  background: var(--primary);
+}
+
+.onboarding-step {
+  text-align: center;
+}
+
+.onboarding-step[hidden] {
+  display: none;
+}
+
+.onboarding-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #6366f1, #2563eb);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 auto 12px;
+}
+
+.onboarding-step h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.onboarding-step p {
+  margin: 0 0 6px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.onboarding-tip {
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--bg-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+}
+
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.onboarding-actions .link-btn {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.onboarding-actions .link-btn:hover {
+  background: var(--secondary);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.onboarding-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboarding-actions-right .primary-btn {
+  padding: 9px 20px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+
+.onboarding-actions-right .secondary-btn {
+  padding: 9px 16px;
+  font-size: 14px;
+  border-radius: 10px;
+  background: var(--secondary);
+  border: none;
+  color: var(--text);
+}
+
+.onboarding-actions-right .secondary-btn:hover {
+  background: var(--secondary-hover);
+}
