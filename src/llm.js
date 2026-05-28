@@ -47,17 +47,31 @@ function normalizeBaseUrl(url, provider) {
 
 export { normalizeBaseUrl };
 
+// 官方 API 的域名列表——这些需要拼接路径（如 /chat/completions）。
+// 非官方的（第三方网关）直接用用户填的 URL，不追加任何路径。
+const OFFICIAL_API_HOSTS = [
+  "api.openai.com",
+  "api.anthropic.com",
+];
+
+function isOfficialUrl(url) {
+  try {
+    const host = new URL(url).hostname;
+    return OFFICIAL_API_HOSTS.includes(host);
+  } catch (_) {
+    return false;
+  }
+}
+
 function buildUrl(baseUrl, path) {
   const base = baseUrl.replace(/\/+$/, "");
-  // 如果用户填的 URL 已经包含了完整的 API 路径，直接用，不追加。
-  // 这样兼容两种填法：
-  //   1. https://api.openai.com/v1          → 拼成 .../v1/chat/completions
-  //   2. https://www.packyapi.com/chat/completions → 直接用
-  if (base.endsWith(path)) return base;
-  if (base.includes("/chat/completions") || base.includes("/messages")) {
-    return base;
+  if (isOfficialUrl(base)) {
+    // 官方 URL：拼接标准路径（如 /v1 + /chat/completions）
+    if (base.endsWith(path)) return base;
+    return base + path;
   }
-  return base + path;
+  // 第三方网关：直接用用户填的 URL，不追加
+  return base;
 }
 
 async function fetchOrThrow(

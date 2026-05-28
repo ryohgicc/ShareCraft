@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ShareCraft - 网页推荐语生成器",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "一键生成 3 种风格的网页推荐语，让分享更有吸引力。支持 OpenAI 和 Anthropic。",
   "permissions": [
     "activeTab",

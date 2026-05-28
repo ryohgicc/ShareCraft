@@ -117,6 +117,11 @@ MIT
 
 ## 更新日志
 
+### v2.0.2
+
+- 修复第三方网关 URL 被强制追加 `/chat/completions` 的问题。现在只有官方域名（`api.openai.com` / `api.anthropic.com`）会自动拼接路径，其他网关直接使用用户填写的完整 URL。
+- 更新朋友安利默认 prompt（结构化 ending rule）。
+
 ### v2.0.1
 
 - 修复测试连接时 `max_tokens` 参数导致新模型报 400 的问题
