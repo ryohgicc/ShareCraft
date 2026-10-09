@@ -1,5 +1,5 @@
 import { getSettings, saveSettings, DEFAULT_SETTINGS } from "./storage.js";
-import { DEFAULT_MODELS, DEFAULT_BASE_URLS, testConnection } from "./llm.js";
+import { DEFAULT_MODELS, DEFAULT_BASE_URLS, testConnection, validateCustomEndpoint } from "./llm.js";
 import {
   DEFAULT_STYLES,
   NEW_STYLE_TEMPLATE,
@@ -337,6 +337,15 @@ form.addEventListener("submit", async (event) => {
   if (!apiKey) {
     flashSaved("请填写 API Key。", true);
     return;
+  }
+
+  if (provider === "custom") {
+    try {
+      validateCustomEndpoint(baseUrl);
+    } catch (err) {
+      flashSaved(err.message, true);
+      return;
+    }
   }
 
   try {

@@ -48,6 +48,21 @@ function normalizeBaseUrl(url, provider) {
 
 export { normalizeBaseUrl };
 
+export function validateCustomEndpoint(baseUrl) {
+  let parsed;
+  try {
+    parsed = new URL(baseUrl);
+  } catch (_) {
+    throw new LlmError("请填写有效的完整 API 端点 URL。");
+  }
+  if (!/^https?:$/.test(parsed.protocol) || parsed.pathname === "/") {
+    throw new LlmError(
+      "自定义模式需要完整的 API 端点，不能填写网站首页。此类 OpenAI 兼容网关建议选择「OpenAI（兼容协议）」并将 Base URL 填到 /v1。",
+      { url: baseUrl }
+    );
+  }
+}
+
 function buildUrl(baseUrl, path) {
   const base = baseUrl.replace(/\/+$/, "");
   if (base.endsWith(path)) return base;
@@ -145,6 +160,27 @@ function cleanText(text) {
   return t.trim();
 }
 
+function parseJsonResponse(rawText, url, label) {
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch (err) {
+    const isHtml = /^\s*(?:<!doctype html|<html\b)/i.test(rawText);
+    const message = isHtml
+      ? `${label} 接口返回了网页 HTML。请检查 Base URL 是否包含网关的 API 路径（通常为 /v1）；「自定义（直接请求）」需填写完整端点。`
+      : `${label} 返回的不是合法 JSON：${err?.message || err}`;
+    throw new LlmError(message, { url, body: rawText });
+  }
+  if (data?.error) {
+    const msg =
+      typeof data.error === "string"
+        ? data.error
+        : data.error?.message || JSON.stringify(data.error);
+    throw new LlmError(`${label} 接口返回错误：${msg}`, { url, body: rawText });
+  }
+  return data;
+}
+
 export async function callOpenAIStyle({
   apiKey,
   model,
@@ -165,7 +201,6 @@ export async function callOpenAIStyle({
       },
       body: JSON.stringify({
         model: model || DEFAULT_MODELS.openai,
-        temperature: 0.9,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -176,22 +211,7 @@ export async function callOpenAIStyle({
   );
 
   const rawText = await res.text();
-  let data;
-  try {
-    data = JSON.parse(rawText);
-  } catch (err) {
-    throw new LlmError(`OpenAI 返回的不是合法 JSON：${err?.message || err}`, {
-      url,
-      body: rawText,
-    });
-  }
-  if (data?.error) {
-    const msg =
-      typeof data.error === "string"
-        ? data.error
-        : data.error?.message || JSON.stringify(data.error);
-    throw new LlmError(`OpenAI 接口返回错误：${msg}`, { url, body: rawText });
-  }
+  const data = parseJsonResponse(rawText, url, "OpenAI");
   const content = data?.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) {
     throw new LlmError(
@@ -225,7 +245,6 @@ export async function callAnthropicStyle({
       body: JSON.stringify({
         model: model || DEFAULT_MODELS.anthropic,
         max_tokens: 1500,
-        temperature: 0.9,
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
       }),
@@ -234,25 +253,7 @@ export async function callAnthropicStyle({
   );
 
   const rawText = await res.text();
-  let data;
-  try {
-    data = JSON.parse(rawText);
-  } catch (err) {
-    throw new LlmError(`Anthropic 返回的不是合法 JSON：${err?.message || err}`, {
-      url,
-      body: rawText,
-    });
-  }
-  if (data?.error) {
-    const msg =
-      typeof data.error === "string"
-        ? data.error
-        : data.error?.message || JSON.stringify(data.error);
-    throw new LlmError(`Anthropic 接口返回错误：${msg}`, {
-      url,
-      body: rawText,
-    });
-  }
+  const data = parseJsonResponse(rawText, url, "Anthropic");
   const content = (data?.content || [])
     .filter((c) => c?.type === "text")
     .map((c) => c.text)
@@ -278,6 +279,7 @@ export async function callCustomStyle({
 }) {
   // 直接用 baseUrl，不追加任何路径。
   const url = baseUrl.replace(/\/+$/, "");
+  validateCustomEndpoint(url);
   const res = await fetchOrThrow(
     "Custom",
     url,
@@ -289,7 +291,6 @@ export async function callCustomStyle({
       },
       body: JSON.stringify({
         model: model || "gpt-4o-mini",
-        temperature: 0.9,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -300,22 +301,7 @@ export async function callCustomStyle({
   );
 
   const rawText = await res.text();
-  let data;
-  try {
-    data = JSON.parse(rawText);
-  } catch (err) {
-    throw new LlmError(`返回的不是合法 JSON：${err?.message || err}`, {
-      url,
-      body: rawText,
-    });
-  }
-  if (data?.error) {
-    const msg =
-      typeof data.error === "string"
-        ? data.error
-        : data.error?.message || JSON.stringify(data.error);
-    throw new LlmError(`接口返回错误：${msg}`, { url, body: rawText });
-  }
+  const data = parseJsonResponse(rawText, url, "Custom");
   const content = data?.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) {
     throw new LlmError(
@@ -398,7 +384,7 @@ export async function testConnection({ provider, apiKey, model, baseUrl }) {
 
   if (provider === "anthropic") {
     const url = buildUrl(resolvedBase, "/messages");
-    await fetchOrThrow("Anthropic", url, {
+    const res = await fetchOrThrow("Anthropic", url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -408,17 +394,23 @@ export async function testConnection({ provider, apiKey, model, baseUrl }) {
       },
       body: JSON.stringify({
         model: resolvedModel,
-        max_tokens: 1,
+        max_tokens: 16,
         messages: [{ role: "user", content: "ping" }],
       }),
     });
+    const rawText = await res.text();
+    const data = parseJsonResponse(rawText, url, "Anthropic");
+    if (!data?.content?.some((part) => part?.type === "text" && typeof part.text === "string")) {
+      throw new LlmError("Anthropic 返回结构异常：找不到 content[].text", { url, body: rawText });
+    }
     return { provider, model: resolvedModel, baseUrl: resolvedBase, url };
   }
 
   if (provider === "custom") {
     // 自定义模式：直接用用户填的 URL，不拼路径
     const url = resolvedBase.replace(/\/+$/, "");
-    await fetchOrThrow("Custom", url, {
+    validateCustomEndpoint(url);
+    const res = await fetchOrThrow("Custom", url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -429,12 +421,20 @@ export async function testConnection({ provider, apiKey, model, baseUrl }) {
         messages: [{ role: "user", content: "ping" }],
       }),
     });
+    const rawText = await res.text();
+    const data = parseJsonResponse(rawText, url, "Custom");
+    if (typeof data?.choices?.[0]?.message?.content !== "string") {
+      throw new LlmError(
+        "返回结构异常：找不到 choices[0].message.content",
+        { url, body: rawText }
+      );
+    }
     return { provider, model: resolvedModel, baseUrl: resolvedBase, url };
   }
 
   // OpenAI（默认）
   const url = buildUrl(resolvedBase, "/chat/completions");
-  await fetchOrThrow("OpenAI", url, {
+  const res = await fetchOrThrow("OpenAI", url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -445,5 +445,13 @@ export async function testConnection({ provider, apiKey, model, baseUrl }) {
       messages: [{ role: "user", content: "ping" }],
     }),
   });
+  const rawText = await res.text();
+  const data = parseJsonResponse(rawText, url, "OpenAI");
+  if (typeof data?.choices?.[0]?.message?.content !== "string") {
+    throw new LlmError(
+      "OpenAI 返回结构异常：找不到 choices[0].message.content（网关可能不兼容 OpenAI 协议）",
+      { url, body: rawText }
+    );
+  }
   return { provider, model: resolvedModel, baseUrl: resolvedBase, url };
 }
